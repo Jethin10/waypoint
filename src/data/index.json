@@ -1,0 +1,87 @@
+{
+  "snapshot": "2026-10-24",
+  "totalPostings": 9028,
+  "companies": 45,
+  "roadmaps": [
+    {
+      "slug": "frontend",
+      "title": "Frontend Developer",
+      "shortTitle": "Frontend",
+      "description": "Step by step guide to becoming a modern frontend developer in 2026",
+      "topics": 37,
+      "nodes": 120,
+      "postings": 41,
+      "companies": 20
+    },
+    {
+      "slug": "backend",
+      "title": "Backend Developer",
+      "shortTitle": "Backend",
+      "description": "Step by step guide to becoming a modern backend developer in 2026",
+      "topics": 23,
+      "nodes": 155,
+      "postings": 167,
+      "companies": 29
+    },
+    {
+      "slug": "full-stack",
+      "title": "Full Stack Developer",
+      "shortTitle": "Full Stack",
+      "description": "Step by step guide to becoming a modern full stack developer in 2026",
+      "topics": 19,
+      "nodes": 37,
+      "postings": 134,
+      "companies": 32
+    },
+    {
+      "slug": "machine-learning",
+      "title": "Machine Learning",
+      "shortTitle": "Machine Learning",
+      "description": "Step by step guide to becoming a Machine Learning Engineer in 2026",
+      "topics": 38,
+      "nodes": 150,
+      "postings": 128,
+      "companies": 24
+    },
+    {
+      "slug": "ai-engineer",
+      "title": "AI Engineer",
+      "shortTitle": "AI Engineer",
+      "description": "Step by step guide to becoming an AI Engineer in 2026",
+      "topics": 22,
+      "nodes": 190,
+      "postings": 183,
+      "companies": 33
+    },
+    {
+      "slug": "data-analyst",
+      "title": "Data Analyst Roadmap",
+      "shortTitle": "Data Analyst",
+      "description": "Step by step guide to becoming an Data Analyst in 2026",
+      "topics": 14,
+      "nodes": 99,
+      "postings": 53,
+      "companies": 21
+    },
+    {
+      "slug": "devops",
+      "title": "DevOps Roadmap",
+      "shortTitle": "DevOps",
+      "description": "Step by step guide for DevOps, SRE or any other Operations Role in 2026",
+      "topics": 22,
+      "nodes": 139,
+      "postings": 182,
+      "companies": 33
+    },
+    {
+      "slug": "cyber-security",
+      "title": "Cyber Security Expert",
+      "shortTitle": "Cyber Security",
+      "description": "Step by step guide to becoming a Cyber Security Expert in 2026",
+      "topics": 6,
+      "nodes": 301,
+      "postings": 289,
+      "companies": 35
+    }
+  ]
+}

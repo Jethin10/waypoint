@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Waypoint — a GPS for learning
 
-## Getting Started
+Students don't lack roadmaps; they lack a route that knows what they already know, proves they learned it, and recalculates when life happens. Waypoint does that, weighted by what real job postings ask for.
 
-First, run the development server:
+## Run it
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```powershell
+npm install
+copy .env.example .env.local   # optional: add ANTHROPIC_API_KEY for Claude grading + narration
+npm run dev                    # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No key? Everything still works: the offline engine plots routes and grades explanations.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo path (3 minutes)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Landing page → **Plot my route** → pick **Machine Learning**.
+2. Set 2h/day, 3 months → swipe through calibration (keys 1/2/3 work).
+3. On the map, open the blue **You are here** stop → **Prove it**.
+4. Type a one-line answer → it fails → **Recalculate my route** → a detour appears.
+5. Finish the detour, explain properly → pass → confetti, readiness ticks up.
+6. **Life happened · I missed 3 days** → the route replans.
 
-## Learn More
+## How it works
 
-To learn more about Next.js, take a look at the following resources:
+- `scripts/build-data.mjs` — pulls roadmap.sh topic graphs + content, and live postings from public Greenhouse/Lever boards, then matches postings to topics. Re-run to refresh `src/data/`.
+- `src/lib/engine.ts` — route building, trimming to fit your hours, detours, missed-day replans, job readiness.
+- `src/lib/ai.ts` — Claude (`claude-opus-5-5`) for chapter narration and explain-back grading, via structured outputs.
+- `src/lib/grader.ts` — offline fallback grader.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Credits
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Topic graphs, descriptions and curated resources: [roadmap.sh](https://roadmap.sh) (used for a non-commercial hackathon demo).
+- Job data: public Greenhouse and Lever job boards (snapshot in `src/data/index.json`).
+- Landing page layout, motion system, reel and project media: [2xA Studio](https://2xa.studio). Media is streamed from their site, so the landing page needs internet.
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The Next.js app is deployed on Vercel. All routes work without an API key using the local planning and grading engines. To enable Claude narration and grading, add `ANTHROPIC_API_KEY` as a server-side Vercel environment variable and redeploy.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Local `.env` files, Vercel credentials, and downloaded design references are excluded from Git and deployment uploads.

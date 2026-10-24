@@ -1,69 +1,72 @@
-import Image from "next/image";
+import { Destinations, type Destination } from "@/components/home/destinations";
+import { Experiments } from "@/components/home/experiments";
+import { FooterBar, Header } from "@/components/home/header";
+import { Hero } from "@/components/home/hero";
+import { Manifesto } from "@/components/home/manifesto";
+import { Footer, Sources, type SourceRow } from "@/components/home/sources";
+import { SmoothScroll } from "@/components/landing/smooth-scroll";
+import { datasetIndex, getJobs, topSkills } from "@/lib/data";
+import "./landing.css";
+
+// Landing layout, motion system and media after 2xA Studio (https://2xa.studio), credited in the footer.
+const MEDIA: Destination["media"][] = [
+  { kind: "video", src: "https://2xa.studio/media/pages/projects/abr-festival/d8acd0f47c-1777545607/2xa_studio_abr_festival_monitor.mp4", ratio: "16 / 9" },
+  { kind: "image", src: "https://2xa.studio/media/pages/projects/buna-tetu/f1d7c01224-1775473644/2xa_buna_tetu_posters_hanging-1331x.jpg", ratio: "1331 / 2000" },
+  { kind: "image", src: "https://2xa.studio/media/pages/projects/miao-world/47a7f4c5d2-1775477376/2xa_studio_miao_typography-1920x.jpg", ratio: "16 / 9" },
+];
+
+const FEATURED = ["machine-learning", "ai-engineer", "frontend"];
 
 export default function Home() {
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
+  const items: Destination[] = FEATURED.map((slug, i) => {
+    const meta = datasetIndex.roadmaps.find((r) => r.slug === slug)!;
+    const skills = topSkills(slug, 3);
+    return {
+      slug,
+      title: meta.title,
+      media: MEDIA[i],
+      description: `${meta.topics} stops and ${meta.nodes} topics from roadmap.sh, weighted by ${meta.postings} live postings across ${meta.companies} companies. ${skills
+        .map((s) => `${s.title} appears in ${pct(s.share)}`)
+        .join(", ")} of them, so that is where your route spends its hours. Everything you already know is skipped.`,
+    };
+  });
+
+  const postings = datasetIndex.totalPostings;
+  const topics = datasetIndex.roadmaps.reduce((a, r) => a + r.nodes, 0);
+  const matched = datasetIndex.roadmaps.reduce((a, r) => a + (getJobs(r.slug)?.postings.length ?? 0), 0);
+  const year = datasetIndex.snapshot.slice(0, 4);
+  const rows: SourceRow[] = [
+    { signal: "Topic graph", source: "roadmap.sh", use: `${topics.toLocaleString()} topics, community-ordered`, year },
+    { signal: "Topic graph", source: "roadmap.sh", use: "Curated articles, docs & videos", year, child: true },
+    { signal: "Topic graph", source: "roadmap.sh", use: `${datasetIndex.roadmaps.length} destinations`, year, child: true },
+    { signal: "Job demand", source: "Greenhouse", use: `${postings.toLocaleString()} live postings read`, year },
+    { signal: "Job demand", source: "Lever", use: `${matched.toLocaleString()} matched to skills`, year, child: true },
+    { signal: "Job demand", source: "Waypoint matcher", use: `${datasetIndex.companies} companies, dated snapshot`, year, child: true },
+    { signal: "Understanding", source: "Claude Opus 5.5", use: "Explain-back grading", year },
+    { signal: "Understanding", source: "Claude Opus 5.5", use: "Chapter names & route narration", year, child: true },
+    { signal: "Rerouting", source: "Waypoint engine", use: "Detours after a missed concept", year },
+    { signal: "Rerouting", source: "Waypoint engine", use: "Missed-day replans & trimming", year, child: true },
+    { signal: "Rerouting", source: "Waypoint engine", use: "Offline fallback, no key needed", year, child: true },
+    { signal: "Design", source: "2xA Studio", use: "Landing layout, motion & media (credited)", year },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="lp theme--dark">
+      <SmoothScroll />
+      <Header />
+      <main>
+        <div className="welcome">
+          <Hero />
+          <Experiments />
+          <FooterBar />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        <Manifesto />
+        <Destinations items={items} total={datasetIndex.roadmaps.length} postings={postings} />
+        <Sources rows={rows} />
+        <Footer />
       </main>
+      <div className="noise" aria-hidden />
     </div>
   );
 }

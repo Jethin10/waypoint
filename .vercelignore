@@ -1,0 +1,7 @@
+.git
+.next
+node_modules
+.rivet
+.env*
+!.env.example
+*.tsbuildinfo
