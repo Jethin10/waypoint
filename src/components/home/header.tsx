@@ -57,8 +57,11 @@ export function Header() {
             </a>
           </li>
           <li>
-            <Link href="/start" className="btn">
-              Start
+            <Link href="/start" className="btn nav-cta">
+              Try the app
+              <svg viewBox="0 0 18 16" fill="none" aria-hidden="true">
+                <path d="M2 8h13m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
             </Link>
           </li>
         </ul>
