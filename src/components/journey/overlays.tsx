@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { EASE } from "../ui/motion";
+import { Mascot } from "@/components/app/shell";
 
 export interface RecalcInfo {
   id: number;
@@ -10,79 +10,63 @@ export interface RecalcInfo {
   lines: string[];
 }
 
-/** Full-screen GPS-style "Recalculating…" moment. */
+/** GPS-style "Recalculating…" moment, then what changed. */
 function RecalcBody({ info, onDone }: { info: RecalcInfo; onDone: () => void }) {
   const [stage, setStage] = useState(0);
   useEffect(() => {
-    const a = setTimeout(() => setStage(1), 1300);
-    const b = setTimeout(onDone, 3600);
-    return () => {
-      clearTimeout(a);
-      clearTimeout(b);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    const a = setTimeout(() => setStage(1), 1400);
+    return () => clearTimeout(a);
+  }, []);
 
   return (
-    <motion.div
-      className="fixed inset-0 z-[80] flex flex-col justify-between bg-ink p-4"
-      initial={{ clipPath: "inset(0 0 100% 0)" }}
-      animate={{ clipPath: "inset(0 0 0% 0)" }}
-      exit={{ clipPath: "inset(100% 0 0 0)" }}
-      transition={{ duration: 0.8, ease: EASE }}
-      onClick={onDone}
-    >
-      <div className="flex justify-between font-mono text-[1.4rem] uppercase">
-        <span>Waypoint</span>
-        <span className="text-ember">● Rerouting</span>
-      </div>
-      <div>
-        <AnimatePresence mode="wait">
-          {stage === 0 ? (
-            <motion.h2 key="r" exit={{ opacity: 0, y: -30 }} className="text-[12vw] leading-[0.9] tracking-[-0.03em]">
-              {"Recalculating".split("").map((c, i) => (
-                <motion.span key={i} className="inline-block" initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0.3, 1] }} transition={{ delay: i * 0.05, duration: 0.6, times: [0, 0.3, 0.6, 1] }}>
-                  {c}
-                </motion.span>
+    <motion.div className="duo recalc" role="dialog" aria-label="Route recalculated" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => stage === 1 && onDone()}>
+      <AnimatePresence mode="wait">
+        {stage === 0 ? (
+          <motion.div key="r" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem" }} exit={{ opacity: 0, y: -20 }}>
+            <div className="spin" />
+            <h1 className="orange">Recalculating…</h1>
+          </motion.div>
+        ) : (
+          <motion.div key="s" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem", width: "100%" }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Mascot mood="happy" size={130} />
+            <h1>{info.title}</h1>
+            <ul className="recalc-lines">
+              {info.lines.map((l, i) => (
+                <motion.li key={i} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.1 }}>
+                  <span className="n">{i + 1}</span>
+                  {l}
+                </motion.li>
               ))}
-              <motion.span animate={{ opacity: [1, 0, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>
-                …
-              </motion.span>
-            </motion.h2>
-          ) : (
-            <motion.div key="s" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE }}>
-              <h2 className="text-[7vw] leading-[0.9] tracking-[-0.03em]">{info.title}</h2>
-              <div className="mt-8 grid gap-2 md:grid-cols-3">
-                {info.lines.map((l, i) => (
-                  <motion.p key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.12, duration: 0.6, ease: EASE }} className="font-mono text-base uppercase text-muted md:text-lg">
-                    ({String(i + 1).padStart(2, "0")}) {l}
-                  </motion.p>
-                ))}
+            </ul>
+            <footer className="lesson-foot">
+              <div style={{ justifyContent: "flex-end" }}>
+                <button className="dbtn orange" onClick={onDone} autoFocus>
+                  Got it
+                </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-      <p className="font-mono text-sm uppercase text-faint">Click anywhere to continue</p>
+            </footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
-/** Full-screen GPS-style "Recalculating…" moment. */
 export function Recalculating({ info, onDone }: { info: RecalcInfo | null; onDone: () => void }) {
   return <AnimatePresence>{info && <RecalcBody key={info.id} info={info} onDone={onDone} />}</AnimatePresence>;
 }
 
-/** A short burst of square confetti for passing a check. */
+/** Confetti burst for passing a check. */
 export function Burst({ id }: { id: number }) {
   const pieces = useMemo(() => {
     if (!id) return [];
-    const colors = ["#171717", "#b7b7ad", "#0000ff", "#5c5cff"];
+    const colors = ["#86b85a", "#f26b1d", "#e9b949", "#e2483d", "#3aa59a", "#e2483d"];
     let seed = id * 9301 + 49297;
-    const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-    return Array.from({ length: 70 }, (_, k) => {
+    const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    return Array.from({ length: 80 }, (_, k) => {
       const a = rnd() * Math.PI * 2;
       const d = 160 + rnd() * 380;
-      return { k, x: Math.cos(a) * d, y: Math.sin(a) * d - 120, r: rnd() * 540 - 270, c: colors[k % colors.length], s: 5 + rnd() * 8 };
+      return { k, x: Math.cos(a) * d, y: Math.sin(a) * d - 120, r: rnd() * 540 - 270, c: colors[k % colors.length], s: 7 + rnd() * 8, round: rnd() > 0.5 };
     });
   }, [id]);
   return (
@@ -91,7 +75,7 @@ export function Burst({ id }: { id: number }) {
         <motion.span
           key={p.k}
           className="absolute block"
-          style={{ width: p.s, height: p.s, background: p.c }}
+          style={{ width: p.s, height: p.round ? p.s : p.s * 0.5, background: p.c, borderRadius: p.round ? "50%" : 3 }}
           initial={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
           animate={{ x: p.x, y: p.y + 260, rotate: p.r, opacity: 0 }}
           transition={{ duration: 1.6, ease: [0.2, 0.7, 0.4, 1] }}

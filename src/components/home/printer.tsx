@@ -14,6 +14,17 @@ const GLYPHS: Record<string, string[]> = {
   I: ["####", " ## ", " ## ", " ## ", " ## ", " ## ", " ## ", " ## ", "####"],
   N: ["##   ##", "###  ##", "###  ##", "## # ##", "## # ##", "## # ##", "##  ###", "##  ###", "##   ##"],
   T: ["#######", "  ###  ", "  ###  ", "  ###  ", "  ###  ", "  ###  ", "  ###  ", "  ###  ", "  ###  "],
+  "0": [" ##### ", "##   ##", "##  ###", "## # ##", "## # ##", "## # ##", "###  ##", "##   ##", " ##### "],
+  "1": ["   ##  ", "  ###  ", " ####  ", "   ##  ", "   ##  ", "   ##  ", "   ##  ", "   ##  ", " ######"],
+  "2": [" ##### ", "##   ##", "     ##", "     ##", "    ## ", "   ##  ", "  ##   ", " ##    ", "#######"],
+  "3": [" ##### ", "##   ##", "     ##", "     ##", "  #### ", "     ##", "     ##", "##   ##", " ##### "],
+  "4": ["##   ##", "##   ##", "##   ##", "##   ##", "#######", "     ##", "     ##", "     ##", "     ##"],
+  "5": ["#######", "##     ", "##     ", "###### ", "     ##", "     ##", "     ##", "##   ##", " ##### "],
+  "6": [" ##### ", "##   ##", "##     ", "##     ", "###### ", "##   ##", "##   ##", "##   ##", " ##### "],
+  "7": ["#######", "     ##", "     ##", "    ## ", "   ##  ", "  ##   ", "  ##   ", "  ##   ", "  ##   "],
+  "8": [" ##### ", "##   ##", "##   ##", "##   ##", " ##### ", "##   ##", "##   ##", "##   ##", " ##### "],
+  "9": [" ##### ", "##   ##", "##   ##", "##   ##", " ######", "     ##", "     ##", "##   ##", " ##### "],
+  "/": ["      #", "     ##", "    ## ", "   ##  ", "  ##   ", " ##    ", "##     ", "#      ", "       "],
 };
 
 const U = 26; // unit width
@@ -47,11 +58,11 @@ function Line({ i, rows, width, progress }: { i: number; rows: number; width: nu
   return <motion.rect className="line" x={0} y={i * PITCH} width={width} height={H} style={{ x }} />;
 }
 
-export function Printer({ word = "WAYPOINT", progress, label }: { word?: string; progress: MotionValue<number>; label?: string }) {
+export function Printer({ word = "WAYPOINT", progress, label, className = "" }: { word?: string; progress: MotionValue<number>; label?: string; className?: string }) {
   const id = useId().replace(/:/g, "");
   const { bars, width, height } = layout(word);
   return (
-    <div className="lp-printer">
+    <div className={`lp-printer ${className}`}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label ?? word}>
         <mask id={`m${id}`} style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="0" width={width} height={height}>
           {bars.map((b, k) => (

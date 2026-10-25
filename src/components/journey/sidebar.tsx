@@ -2,22 +2,50 @@
 
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { useEffect } from "react";
+import { Bar, Icon } from "@/components/app/shell";
 import { QUALIFY_AT } from "@/lib/engine";
 import type { JobsData, Plan, PlanNode } from "@/lib/types";
-import { EASE } from "../ui/motion";
+import type { Attempt } from "@/store/journey";
+import { UNIT, XP_PER_STOP } from "./route-map";
 
-function Ticker({ value, className = "" }: { value: number; className?: string }) {
+function Ticker({ value }: { value: number }) {
   const mv = useMotionValue(value);
   const text = useTransform(mv, (v) => Math.round(v).toString());
   useEffect(() => {
-    const c = animate(mv, value, { duration: 1.4, ease: EASE });
+    const c = animate(mv, value, { duration: 1.2, ease: [0.16, 1, 0.3, 1] });
     return () => c.stop();
   }, [value, mv]);
-  return <motion.span className={className}>{text}</motion.span>;
+  return <motion.span>{text}</motion.span>;
 }
 
-const card = "rounded-[0.2rem] border border-line bg-ink-2 p-5";
 const DAY = 86_400_000;
+const LOGO = ["#f26b1d", "#3a8f86", "#6f9a45", "#3a8f86", "#527633"];
+
+export function xpOf(plan: Plan) {
+  return plan.nodes.filter((n) => n.status === "done").length * XP_PER_STOP;
+}
+
+export function Stats({ plan, streak, qualified, className = "" }: { plan: Plan; streak: number; qualified: number; className?: string }) {
+  return (
+    <div className={`stats ${className}`}>
+      <span className="course-chip" title={plan.roadmapTitle} style={{ "--u": UNIT[0].u } as React.CSSProperties}>
+        <span className="sq">{Icon.map()}</span>
+      </span>
+      <span className={streak ? "stat c-orange" : "stat off"} title={`${streak} day streak`}>
+        {Icon.flame(streak > 0)}
+        <Ticker value={streak} />
+      </span>
+      <span className="stat c-gold" title="XP earned">
+        {Icon.bolt()}
+        <Ticker value={xpOf(plan)} />
+      </span>
+      <span className="stat c-purple" title="Roles you qualify for">
+        {Icon.brief()}
+        <Ticker value={qualified} />
+      </span>
+    </div>
+  );
+}
 
 export function Readiness({
   jobs,
@@ -34,75 +62,89 @@ export function Readiness({
   unlock: { node: PlanNode; gain: number } | null;
   onOpen: (n: PlanNode) => void;
 }) {
-  const top = [...matches].sort((a, b) => b.coverage - a.coverage).slice(0, 5);
+  const top = [...matches].sort((a, b) => b.coverage - a.coverage).slice(0, 4);
   return (
-    <section className={card}>
-      <p className="label">Job readiness</p>
-      <div className="mt-4 flex items-end gap-3">
-        <Ticker value={qualified} className="text-7xl leading-none tracking-[-0.03em]" />
-        <span className="pb-2 font-mono text-sm uppercase text-muted">/ {total} roles</span>
+    <section className="card" id="readiness">
+      <div className="card-head">
+        <h3>Job readiness</h3>
+        {jobs && <span className="link">{jobs.postings.length} live</span>}
       </div>
-      <p className="mt-2 font-mono text-[11px] uppercase text-faint">You cover {Math.round(QUALIFY_AT * 100)}%+ of their skills</p>
-      <div className="mt-4 h-1.5 bg-line">
-        <motion.div className="h-full bg-cream" animate={{ width: `${total ? (qualified / total) * 100 : 0}%` }} transition={{ duration: 1.4, ease: EASE }} />
+      <div className="big-num">
+        {Icon.brief()}
+        <strong>
+          <Ticker value={qualified} />
+        </strong>
+        <span>of {total} real roles</span>
       </div>
+      <Bar value={total ? qualified / total : 0} color="purple" className="thin" />
+      <p className="muted" style={{ marginTop: "0.75rem" }}>
+        You qualify when you cover {Math.round(QUALIFY_AT * 100)}%+ of a role&apos;s skills.
+      </p>
       {unlock && (
-        <button onClick={() => onOpen(unlock.node)} className="mt-5 flex w-full items-center justify-between rounded-[0.15rem] bg-blue px-3 py-2.5 text-left font-mono text-xs uppercase text-cream transition-colors hover:bg-cream hover:text-ink">
-          <span>Next unlock: {unlock.node.title}</span>
-          <span>+{unlock.gain} roles</span>
+        <button onClick={() => onOpen(unlock.node)} className="dbtn blue block" style={{ marginTop: "1rem", whiteSpace: "normal", lineHeight: 1.2, padding: "0.6rem 1rem" }}>
+          Next unlock: +{unlock.gain} {unlock.gain === 1 ? "role" : "roles"}
         </button>
       )}
       {jobs && top.length > 0 && (
-        <div className="mt-6">
-          <p className="label mb-2">Closest real roles</p>
-          <ul className="divide-y divide-line">
-            {top.map((m) => {
-              const p = jobs.postings[m.i];
-              return (
-                <li key={m.i}>
-                  <a href={p.url} target="_blank" rel="noreferrer" className="group flex items-center gap-3 py-2.5">
-                    <span className="flex-1 truncate text-[14px] group-hover:underline">
-                      {p.title}
-                      <span className="block font-mono text-[10px] uppercase text-faint">
-                        {p.company} · {p.location || "—"}
-                      </span>
-                    </span>
-                    <span className={`font-mono text-xs ${m.coverage >= QUALIFY_AT ? "text-cream" : "text-faint"}`}>{Math.round(m.coverage * 100)}%</span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="mt-2 font-mono text-[10px] uppercase text-faint">Live postings · snapshot {jobs.snapshot}</p>
-        </div>
+        <ul className="role-list">
+          {top.map((m, k) => {
+            const p = jobs.postings[m.i];
+            return (
+              <li key={m.i}>
+                <a href={p.url} target="_blank" rel="noreferrer">
+                  <span className="role-logo" style={{ background: LOGO[(p.company.charCodeAt(0) + k) % LOGO.length] }}>
+                    {p.company.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="role-copy">
+                    <b>{p.title}</b>
+                    <small>
+                      {p.company} · {p.location || "Remote"}
+                    </small>
+                  </span>
+                  <span className={m.coverage >= QUALIFY_AT ? "role-pct ok" : "role-pct"}>{Math.round(m.coverage * 100)}%</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
       )}
+      {jobs && <p className="card-foot">Snapshot {jobs.snapshot} · Greenhouse &amp; Lever</p>}
     </section>
   );
 }
 
-export function Today({ plan, today, onOpen }: { plan: Plan; today: number; onOpen: (n: PlanNode) => void }) {
-  const open = plan.nodes.filter((n) => n.status === "current" || n.status === "upcoming");
-  const todays = open.filter((n) => n.day <= today).slice(0, 3);
-  const list = todays.length ? todays : open.slice(0, 1);
-  const mins = list.reduce((a, n) => a + n.minutes, 0);
+export function Quests({ plan, attempts, streak }: { plan: Plan; attempts: Attempt[]; streak: number }) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const todays = attempts.filter((a) => a.at >= start.getTime());
+  const passed = todays.filter((a) => a.score >= 70);
+  const minutes = passed.reduce((s, a) => s + (plan.nodes.find((n) => n.id === a.nodeId)?.minutes ?? 0), 0);
+  const goal = plan.minutesPerDay;
+  const quests = [
+    { icon: Icon.bolt(), title: "Prove 1 stop", have: Math.min(passed.length, 1), need: 1, color: "gold" as const },
+    { icon: Icon.clock(), title: `Learn for ${goal} minutes`, have: Math.min(minutes, goal), need: goal, color: "blue" as const },
+    { icon: Icon.flame(streak > 0), title: "Reach a 3 day streak", have: Math.min(streak, 3), need: 3, color: "gold" as const },
+  ];
   return (
-    <section className={card}>
-      <div className="flex items-baseline justify-between">
-        <p className="label">Today · day {today + 1}</p>
-        <span className="font-mono text-xs uppercase text-muted">{mins} min</span>
+    <section className="card" id="quests">
+      <div className="card-head">
+        <h3>Daily quests</h3>
+        <span className="link">Today</span>
       </div>
-      <ul className="mt-3 space-y-2">
-        {list.map((n) => (
-          <li key={n.id}>
-            <button onClick={() => onOpen(n)} className="group flex w-full items-center gap-3 rounded-[0.15rem] border border-line px-3 py-3 text-left transition-colors hover:bg-cream hover:text-ink">
-              <span className={`h-2.5 w-2.5 shrink-0 ${n.kind === "review" ? "rotate-45 bg-ember" : n.status === "current" ? "rounded-full bg-blue" : "rounded-full border border-line-strong"}`} />
-              <span className="flex-1 text-[15px]">{n.title}</span>
-              <span className="font-mono text-[11px] uppercase text-faint group-hover:text-ink/60">{n.minutes}m</span>
-            </button>
-          </li>
-        ))}
-        {!list.length && <li className="font-mono text-sm uppercase text-muted">Route complete. You arrived.</li>}
-      </ul>
+      {quests.map((q) => (
+        <div key={q.title} className="quest" style={q.color === "blue" ? { color: "var(--blue)" } : undefined}>
+          {q.icon}
+          <div className="quest-body">
+            <b style={{ color: "var(--text)" }}>{q.title}</b>
+            <div className="quest-bar">
+              <Bar value={q.have / q.need} color={q.color} />
+              <em>
+                {q.have} / {q.need}
+              </em>
+            </div>
+          </div>
+        </div>
+      ))}
     </section>
   );
 }
@@ -114,32 +156,33 @@ export function Pace({ plan, today, startedAt, onMiss }: { plan: Plan; today: nu
   const done = plan.nodes.filter((n) => n.status === "done" || n.status === "mastered").length;
   const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return (
-    <section className={card}>
-      <p className="label">Pace</p>
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div>
-          <p className="text-3xl tracking-tight">{fmt(eta)}</p>
-          <p className="font-mono text-[10px] uppercase text-faint">Arrival</p>
+    <section className="card" id="pace">
+      <div className="card-head">
+        <h3>Your pace</h3>
+        <span className={onTrack ? "pill green" : "pill red"}>{onTrack ? "On track" : `${plan.totalDays - plan.deadlineDay} days over`}</span>
+      </div>
+      <div className="pace-grid">
+        <div className="pace-tile">
+          <b>{fmt(eta)}</b>
+          <small>Arrival</small>
         </div>
-        <div>
-          <p className="text-3xl tracking-tight">{fmt(deadline)}</p>
-          <p className="font-mono text-[10px] uppercase text-faint">Deadline</p>
+        <div className="pace-tile">
+          <b>{fmt(deadline)}</b>
+          <small>Deadline</small>
         </div>
-        <div>
-          <p className="text-3xl tracking-tight">
+        <div className="pace-tile">
+          <b>
             {done}/{plan.nodes.length}
-          </p>
-          <p className="font-mono text-[10px] uppercase text-faint">Stops</p>
+          </b>
+          <small>Stops</small>
         </div>
       </div>
-      <p className={`mt-4 inline-block rounded-[0.15rem] px-2 py-1 font-mono text-[11px] uppercase ${onTrack ? "bg-cream text-ink" : "bg-ember text-cream"}`}>
-        {onTrack ? "On track" : `${plan.totalDays - plan.deadlineDay} days over`}
+      <p className="muted" style={{ marginBottom: "1rem" }}>
+        Day {today + 1} of {plan.deadlineDay}.{plan.trimmedSubtopics > 0 ? ` ${plan.trimmedSubtopics} low-demand subtopics trimmed to fit.` : ""}
       </p>
-      {plan.trimmedSubtopics > 0 && <p className="mt-3 font-mono text-[11px] uppercase text-faint">{plan.trimmedSubtopics} low-demand subtopics trimmed to fit</p>}
-      <button onClick={onMiss} className="mt-5 w-full rounded-[0.15rem] border border-line-strong py-3 font-mono text-xs uppercase transition-colors hover:bg-cream hover:text-ink">
+      <button onClick={onMiss} className="dbtn ghost block" style={{ whiteSpace: "normal", fontSize: "0.85rem", lineHeight: 1.2 }}>
         Life happened · I missed 3 days
       </button>
-      <p className="mt-2 text-center font-mono text-[10px] uppercase text-faint">Day {today + 1} of {plan.deadlineDay}</p>
     </section>
   );
 }

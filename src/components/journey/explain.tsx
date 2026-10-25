@@ -2,11 +2,13 @@
 
 import { AnimatePresence, animate, motion, useMotionValue, useTransform } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { Bar, Icon, Mascot, Prompt } from "@/components/app/shell";
 import type { GradeResult, PlanNode } from "@/lib/types";
-import { EASE } from "../ui/motion";
 import { toast } from "../ui/toast";
+import { XP_PER_STOP } from "./route-map";
 
-type Phase = "write" | "grading" | "result";
+type Phase = "write" | "grading" | "result" | "complete";
+const TARGET_WORDS = 40;
 
 interface SpeechRec {
   continuous: boolean;
@@ -41,13 +43,15 @@ function Waveform({ stream }: { stream: MediaStream | null }) {
     const draw = () => {
       an.getByteFrequencyData(data);
       g.clearRect(0, 0, c.width, c.height);
-      const bars = 40;
+      const bars = 24;
       const w = c.width / bars;
       for (let i = 0; i < bars; i++) {
         const v = data[Math.floor((i / bars) * data.length * 0.7)] / 255;
-        const h = Math.max(3, v * c.height);
-        g.fillStyle = "#0000ff";
-        g.fillRect(i * w + 2, (c.height - h) / 2, w - 4, h);
+        const h = Math.max(6, v * c.height);
+        g.fillStyle = "#f26b1d";
+        g.beginPath();
+        g.roundRect(i * w + 3, (c.height - h) / 2, w - 6, h, 4);
+        g.fill();
       }
       raf = requestAnimationFrame(draw);
     };
@@ -57,27 +61,17 @@ function Waveform({ stream }: { stream: MediaStream | null }) {
       ctx.close();
     };
   }, [stream]);
-  return <canvas ref={ref} width={480} height={48} className="h-12 w-full max-w-[480px]" aria-hidden />;
+  return <canvas ref={ref} width={260} height={40} className="wave" aria-hidden />;
 }
 
-function ScoreRing({ score }: { score: number }) {
+function Count({ to }: { to: number }) {
   const mv = useMotionValue(0);
   const text = useTransform(mv, (v) => Math.round(v).toString());
-  const dash = useTransform(mv, (v) => `${(v / 100) * 302} 302`);
   useEffect(() => {
-    const c = animate(mv, score, { duration: 1.6, ease: EASE });
+    const c = animate(mv, to, { duration: 1.1, ease: [0.16, 1, 0.3, 1] });
     return () => c.stop();
-  }, [score, mv]);
-  const pass = score >= 70;
-  return (
-    <div className="relative h-36 w-36">
-      <svg viewBox="0 0 110 110" className="h-full w-full -rotate-90">
-        <circle cx="55" cy="55" r="48" fill="none" stroke="#e2e2de" strokeWidth="6" />
-        <motion.circle cx="55" cy="55" r="48" fill="none" stroke={pass ? "#0000ff" : "#c34d37"} strokeWidth="6" strokeLinecap="round" style={{ strokeDasharray: dash }} />
-      </svg>
-      <motion.span className="absolute inset-0 grid place-items-center text-5xl tracking-tight">{text}</motion.span>
-    </div>
-  );
+  }, [to, mv]);
+  return <motion.span>{text}</motion.span>;
 }
 
 export function Explain({
@@ -160,7 +154,7 @@ export function Explain({
             explanation: text,
           }),
         }),
-        new Promise((r) => setTimeout(r, 1400)),
+        new Promise((r) => setTimeout(r, 1200)),
       ]);
       const data = (await res.json()) as { result?: GradeResult; warning?: string | null; error?: string };
       if (!res.ok || !data.result) throw new Error(data.error ?? "Grading failed");
@@ -173,133 +167,166 @@ export function Explain({
     }
   };
 
+  const close = () => resetThen(() => {
+    stopListening();
+    onClose();
+  });
+
+  useEffect(() => {
+    if (!node) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   const pass = (result?.score ?? 0) >= 70;
+  const title = node?.title.replace(/^Detour · /, "");
 
   return (
     <AnimatePresence>
       {node && (
-        <motion.div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/90 p-4 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <motion.div
-            role="dialog"
-            aria-label={`Explain ${node.title}`}
-            initial={{ y: 40, opacity: 0, scale: 0.98 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 20, opacity: 0 }}
-            transition={{ duration: 0.38, ease: EASE }}
-            className="relative w-full max-w-3xl rounded-[0.2rem] border border-line-strong bg-ink-2 p-6 md:p-10"
-          >
-            <button onClick={() => resetThen(() => { stopListening(); onClose(); })} className="absolute right-4 top-4 rounded-[0.15rem] px-2 py-1 font-mono text-sm uppercase text-muted hover:bg-cream hover:text-ink">
-              Esc ✕
+        <motion.div className="lesson" role="dialog" aria-label={`Explain ${title}`} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} transition={{ type: "spring", stiffness: 380, damping: 36 }}>
+          <header className="lesson-top">
+            <button onClick={close} className="icon-btn" aria-label="Close">
+              {Icon.close()}
             </button>
+            <Bar value={phase === "result" || phase === "complete" ? 1 : Math.min(1, words / TARGET_WORDS)} />
+          </header>
 
-            <AnimatePresence mode="wait">
-              {phase !== "result" ? (
-                <motion.div key="write" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.5, ease: EASE }}>
-                  <p className="label">Explain-back · Feynman check</p>
-                  <h2 className="mt-4 text-4xl leading-[0.95] tracking-[-0.02em] md:text-5xl">
-                    Explain <span className="underline decoration-blue decoration-4 underline-offset-8">{node.title}</span> like you&apos;re teaching a friend.
-                  </h2>
-                  <div className="relative mt-8">
-                    <textarea
-                      value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      disabled={phase === "grading"}
-                      autoFocus
-                      rows={7}
-                      placeholder="In your own words: what is it, why does it matter, and how does it work? An example helps."
-                      className="w-full resize-none rounded-[0.15rem] border border-line-strong bg-ink p-5 text-[17px] leading-relaxed text-cream placeholder:text-faint focus:border-cream focus:outline-none"
-                    />
-                    {phase === "grading" && <div className="shimmer pointer-events-none absolute inset-0 rounded-[0.15rem]" />}
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={listening ? stopListening : startListening}
-                        disabled={phase === "grading"}
-                        className={`relative grid h-14 w-14 place-items-center rounded-full border transition-colors duration-300 ${listening ? "border-ember bg-ember text-cream" : "border-line-strong hover:bg-cream hover:text-ink"}`}
-                        aria-label={listening ? "Stop recording" : "Explain by voice"}
-                      >
-                        {listening && <motion.span className="absolute inset-0 rounded-full border-2 border-ember" animate={{ scale: [1, 1.6], opacity: [0.8, 0] }} transition={{ duration: 1.4, repeat: Infinity }} />}
-                        <span className="font-mono text-lg">{listening ? "■" : "●"}</span>
-                      </button>
-                      {listening ? <Waveform stream={stream} /> : <span className="font-mono text-xs uppercase text-faint">Speak or type</span>}
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className={`font-mono text-xs uppercase ${words >= 40 ? "text-cream" : "text-faint"}`}>{words} words · aim for 40+</span>
-                      <button
-                        onClick={submit}
-                        disabled={words < 3 || phase === "grading"}
-                        className="rounded-[0.15rem] bg-cream px-6 py-3.5 font-mono text-sm uppercase text-ink transition-colors hover:bg-blue hover:text-cream disabled:opacity-30"
-                      >
-                        {phase === "grading" ? "Reading your explanation…" : "Check my understanding →"}
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
+          <main className="lesson-body">
+            <Prompt mood={phase === "grading" ? "think" : phase === "result" ? (pass ? "cheer" : "sad") : listening ? "wow" : "happy"}>
+              {phase === "grading" ? (
+                "Hmm, let me read that carefully…"
               ) : (
-                result && (
-                  <motion.div key="result" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE }}>
-                    <p className="label">
-                      {node.title} · graded by {result.engine === "claude" ? "Claude" : "offline engine"}
-                    </p>
-                    <div className="mt-6 flex flex-col gap-8 md:flex-row md:items-center">
-                      <ScoreRing score={result.score} />
-                      <div className="flex-1">
-                        <h2 className="text-4xl leading-[0.95] tracking-[-0.02em] md:text-5xl">{result.verdict}</h2>
-                        <p className="mt-3 text-[15px] leading-relaxed text-muted">{result.feedback}</p>
-                      </div>
-                    </div>
-                    <div className="mt-8 grid gap-6 md:grid-cols-2">
-                      <div>
-                        <p className="label mb-3">You nailed</p>
-                        <div className="flex flex-wrap gap-2">
-                          {result.strengths.length ? (
-                            result.strengths.map((s, i) => (
-                              <motion.span key={s} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 + i * 0.1, duration: 0.5 }} className="rounded-[0.15rem] bg-cream px-2 py-1 font-mono text-xs uppercase text-ink">
-                                ✓ {s}
-                              </motion.span>
-                            ))
-                          ) : (
-                            <span className="font-mono text-xs uppercase text-faint">Nothing specific yet</span>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="label mb-3">You missed</p>
-                        <div className="flex flex-wrap gap-2">
-                          {result.gaps.length ? (
-                            result.gaps.map((s, i) => (
-                              <motion.span key={s} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 + i * 0.1, duration: 0.5 }} className="rounded-[0.15rem] border border-ember px-2 py-1 font-mono text-xs uppercase text-ember">
-                                ○ {s}
-                              </motion.span>
-                            ))
-                          ) : (
-                            <span className="font-mono text-xs uppercase text-faint">No gaps found</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <p className="mt-8 border-l-2 border-blue pl-4 text-[15px] italic text-cream/80">Follow-up: {result.followUp}</p>
-                    <div className="mt-8 flex flex-wrap justify-end gap-3">
-                      <button onClick={() => setPhase("write")} className="rounded-[0.15rem] border border-line-strong px-5 py-3.5 font-mono text-sm uppercase hover:bg-cream hover:text-ink">
-                        Try again
-                      </button>
-                      {pass ? (
-                        <button onClick={() => resetThen(() => onPass(node, result))} className="rounded-[0.15rem] bg-cream px-6 py-3.5 font-mono text-sm uppercase text-ink hover:bg-blue hover:text-cream">
-                          Continue the route →
-                        </button>
-                      ) : (
-                        <button onClick={() => resetThen(() => onFail(node, result))} className="rounded-[0.15rem] bg-ember px-6 py-3.5 font-mono text-sm uppercase text-cream hover:bg-cream hover:text-ink">
-                          Recalculate my route →
-                        </button>
-                      )}
-                    </div>
-                  </motion.div>
-                )
+                <>
+                  Explain <b className="hl">{title}</b> like you&apos;re teaching a friend.
+                </>
               )}
-            </AnimatePresence>
-          </motion.div>
+            </Prompt>
+            <textarea
+              className="answer"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={phase !== "write"}
+              autoFocus
+              placeholder="In your own words: what is it, why does it matter, and how does it work? An example helps."
+            />
+            <div className="answer-tools">
+              <div className="mic">
+                <button
+                  onClick={listening ? stopListening : startListening}
+                  disabled={phase !== "write"}
+                  className={listening ? "mic-btn live" : "mic-btn"}
+                  aria-label={listening ? "Stop recording" : "Explain by voice"}
+                >
+                  {listening && <motion.span className="pulse" animate={{ scale: [1, 1.5], opacity: [0.8, 0] }} transition={{ duration: 1.2, repeat: Infinity }} />}
+                  {listening ? <span style={{ width: 16, height: 16, background: "#fff", borderRadius: 4 }} /> : Icon.mic()}
+                </button>
+                {listening ? <Waveform stream={stream} /> : <span>Tap to talk</span>}
+              </div>
+              <span className={words >= TARGET_WORDS ? "words ok" : "words"}>
+                {words} / {TARGET_WORDS} words
+              </span>
+            </div>
+          </main>
+
+          <AnimatePresence mode="wait">
+            {phase === "result" && result ? (
+              <motion.footer key="res" className={pass ? "feedback pass" : "feedback fail"} initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 420, damping: 38 }}>
+                <div>
+                  <div className="fb-head">
+                    <span className="fb-badge">{pass ? Icon.check() : Icon.close()}</span>
+                    <div>
+                      <h2>{pass ? "Nice job!" : "Not quite yet"}</h2>
+                      <p className="fb-text">
+                        <b>{result.verdict.replace(/[.!]+$/, "")}.</b> {result.feedback}
+                      </p>
+                    </div>
+                    <span className="fb-score">
+                      <Count to={result.score} />
+                    </span>
+                  </div>
+                  {(result.strengths.length > 0 || result.gaps.length > 0) && (
+                    <div className="fb-pills">
+                      {result.strengths.map((s) => (
+                        <span key={s} className="pill green">
+                          ✓ {s}
+                        </span>
+                      ))}
+                      {result.gaps.map((s) => (
+                        <span key={s} className="pill red">
+                          ○ {s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {result.followUp && <p className="fb-text">Follow-up: {result.followUp}</p>}
+                  <div className="fb-actions">
+                    <button onClick={() => setPhase("write")} className="dbtn ghost">
+                      Try again
+                    </button>
+                    {pass ? (
+                      <button onClick={() => setPhase("complete")} className="dbtn lime">
+                        Continue
+                      </button>
+                    ) : (
+                      <button onClick={() => resetThen(() => onFail(node, result))} className="dbtn red">
+                        Recalculate my route
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.footer>
+            ) : phase !== "complete" ? (
+              <motion.footer key="idle" className="feedback idle" initial={{ y: 0 }} exit={{ opacity: 0 }}>
+                <div className="fb-actions" style={{ flexDirection: "row", alignItems: "center", padding: "1.25rem", minHeight: 100 }}>
+                  <button onClick={close} className="dbtn ghost">
+                    Not now
+                  </button>
+                  <button onClick={submit} disabled={words < 3 || phase === "grading"} className="dbtn primary">
+                    {phase === "grading" ? "Checking…" : "Check"}
+                  </button>
+                </div>
+              </motion.footer>
+            ) : null}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {phase === "complete" && result && (
+              <motion.div className="complete" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <Mascot mood="cheer" size={170} />
+                <motion.h1 initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 16, delay: 0.15 }}>
+                  Stop complete!
+                </motion.h1>
+                <p>You proved {title}. The route moves on.</p>
+                <div className="tiles">
+                  {[
+                    { label: "Total XP", value: XP_PER_STOP, icon: Icon.bolt(), c: "#e9b949" },
+                    { label: "Score", value: result.score, icon: Icon.check(), c: "#86b85a" },
+                    { label: "Minutes", value: node.minutes, icon: Icon.clock(), c: "#ff9a5c" },
+                  ].map((t, i) => (
+                    <motion.div key={t.label} className="tile" style={{ "--tc": t.c } as React.CSSProperties} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.35 + i * 0.12, type: "spring", stiffness: 400, damping: 24 }}>
+                      <small>{t.label}</small>
+                      <div>
+                        {t.icon}
+                        <Count to={t.value} />
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+                <footer className="lesson-foot">
+                  <div style={{ justifyContent: "flex-end" }}>
+                    <button onClick={() => resetThen(() => onPass(node, result))} className="dbtn primary" autoFocus>
+                      Continue
+                    </button>
+                  </div>
+                </footer>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
     </AnimatePresence>

@@ -1,23 +1,31 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { Bar, Icon } from "@/components/app/shell";
 import type { Plan, PlanNode, Resource } from "@/lib/types";
-import { EASE } from "../ui/motion";
+import { unitStyle, XP_PER_STOP } from "./route-map";
 
-const ICON: Record<string, string> = { video: "▶", article: "◇", course: "◎", opensource: "⌘", official: "★", feed: "≋", podcast: "◉", book: "▤" };
+const RES: Record<string, { glyph: string; color: string }> = {
+  video: { glyph: "▶", color: "#e2483d" },
+  article: { glyph: "¶", color: "#f26b1d" },
+  course: { glyph: "◎", color: "#3aa59a" },
+  opensource: { glyph: "</>", color: "#86b85a" },
+  official: { glyph: "★", color: "#e9b949" },
+  feed: { glyph: "≋", color: "#e2483d" },
+  podcast: { glyph: "◉", color: "#f2a07b" },
+  book: { glyph: "▤", color: "#7fb8b0" },
+};
 
 function ResourceLink({ r }: { r: Resource }) {
+  const s = RES[r.type] ?? { glyph: "→", color: "#6e6b5c" };
   return (
-    <a
-      href={r.url}
-      target="_blank"
-      rel="noreferrer"
-      className="group flex items-start gap-3 rounded-[0.15rem] px-2 py-2 transition-colors duration-300 hover:bg-cream hover:text-ink"
-    >
-      <span className="mt-0.5 w-4 shrink-0 text-center font-mono text-xs text-muted group-hover:text-ink">{ICON[r.type] ?? "→"}</span>
-      <span className="text-[14px] leading-snug">
-        {r.title}
-        <span className="ml-2 font-mono text-[10px] uppercase text-faint group-hover:text-ink/60">{r.type}</span>
+    <a href={r.url} target="_blank" rel="noreferrer" className="res">
+      <span className="res-ico" style={{ background: s.color, fontSize: s.glyph.length > 1 ? "0.75rem" : undefined }}>
+        {s.glyph}
+      </span>
+      <span>
+        <b>{r.title}</b>
+        <small>{r.type}</small>
       </span>
     </a>
   );
@@ -40,56 +48,65 @@ export function NodeSheet({
   onFinishDetour: (n: PlanNode) => void;
   onToggle: (n: PlanNode, refId: string) => void;
 }) {
-  const live = node ? plan.nodes.find((n) => n.id === node.id) ?? node : null;
+  const live = node ? (plan.nodes.find((n) => n.id === node.id) ?? node) : null;
   const chapter = live ? plan.chapters[live.chapter] : null;
   const actionable = live && (live.status === "current" || live.status === "upcoming");
+  const review = live?.kind === "review";
 
   return (
     <AnimatePresence>
       {live && (
         <>
-          <motion.div className="fixed inset-0 z-50 bg-ink/70 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+          <motion.div className="scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
           <motion.aside
             role="dialog"
             aria-label={live.title}
+            className="sheet"
+            style={review ? ({ "--u": "#e2483d", "--ud": "#b3312a" } as React.CSSProperties) : unitStyle(live.chapter)}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ duration: 0.38, ease: EASE }}
-            className="thin-scroll fixed inset-y-0 right-0 z-50 flex w-full max-w-[600px] flex-col overflow-y-auto border-l border-line bg-ink-2"
+            transition={{ type: "spring", stiffness: 380, damping: 38 }}
           >
-            <div className="flex items-center justify-between border-b border-line px-6 py-4 font-mono text-sm uppercase">
-              <span className="text-muted">
-                Ch.{String(live.chapter + 1).padStart(2, "0")} · {chapter?.title}
+            <div className="sheet-top">
+              <span>
+                Chapter {live.chapter + 1} · {chapter?.title}
               </span>
-              <button onClick={onClose} className="rounded-[0.15rem] px-2 py-1 hover:bg-cream hover:text-ink">
-                Close ✕
+              <button onClick={onClose} className="icon-btn" aria-label="Close">
+                {Icon.close()}
               </button>
             </div>
 
-            <div className="flex-1 px-6 pb-36 pt-8">
-              {live.kind === "review" && <p className="mb-4 inline-block rounded-[0.15rem] bg-ember px-2 py-1 font-mono text-xs uppercase text-cream">Detour · 30 min</p>}
-              <h2 className="text-5xl leading-[0.95] tracking-[-0.02em]">{live.title.replace(/^Detour · /, "")}</h2>
-              {live.why && <p className="mt-4 font-mono text-sm leading-relaxed text-cream/80">{live.why}</p>}
+            <div className="sheet-body">
+              <div className="sheet-hero">
+                <h2>{live.title.replace(/^Detour · /, "")}</h2>
+                {live.why && <p>{live.why}</p>}
+                <div className="pills">
+                  {review && <span className="pill">Detour · 30 min</span>}
+                  <span className="pill">{live.minutes} min</span>
+                  {live.status === "done" && <span className="pill">Proved {live.score ?? ""}</span>}
+                  {live.status === "mastered" && <span className="pill">Already known</span>}
+                </div>
+              </div>
 
               {live.demand > 0 && (
-                <div className="mt-8">
-                  <div className="flex items-baseline justify-between font-mono text-xs uppercase text-muted">
-                    <span>Asked for in real postings</span>
-                    <span className="text-cream">{Math.round(live.demand * 100)}% of {postings}</span>
+                <div>
+                  <div className="demand-row">
+                    <span>Asked for in real job posts</span>
+                    <span>
+                      {Math.round(live.demand * 100)}% of {postings}
+                    </span>
                   </div>
-                  <div className="mt-2 h-1.5 bg-line">
-                    <motion.div className="h-full bg-cream" initial={{ width: 0 }} animate={{ width: `${Math.min(100, live.demand * 100)}%` }} transition={{ duration: 1.2, ease: EASE, delay: 0.3 }} />
-                  </div>
+                  <Bar value={live.demand} color="blue" className="thin" />
                 </div>
               )}
 
               {live.focus && (
-                <div className="mt-8">
-                  <p className="label">Focus on what you missed</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
+                <div>
+                  <h3>Focus on what you missed</h3>
+                  <div className="pills">
                     {live.focus.map((f) => (
-                      <span key={f} className="rounded-[0.15rem] border border-ember/60 px-2 py-1 font-mono text-xs uppercase text-ember">
+                      <span key={f} className="pill red">
                         {f}
                       </span>
                     ))}
@@ -97,72 +114,70 @@ export function NodeSheet({
                 </div>
               )}
 
-              {live.description && <p className="mt-8 text-[15px] leading-relaxed text-muted">{live.description}</p>}
+              {live.description && <p className="desc">{live.description}</p>}
 
               {live.resources.length > 0 && (
-                <div className="mt-8">
-                  <p className="label mb-2">Start here</p>
-                  {live.resources.map((r) => (
-                    <ResourceLink key={r.url} r={r} />
-                  ))}
+                <div>
+                  <h3>Start here</h3>
+                  <div className="res-list">
+                    {live.resources.map((r) => (
+                      <ResourceLink key={r.url} r={r} />
+                    ))}
+                  </div>
                 </div>
               )}
 
               {live.subtopics.length > 0 && (
-                <div className="mt-10">
-                  <p className="label mb-3">
-                    Stops inside · {live.subtopics.filter((s) => !s.skipped).length} of {live.subtopics.length}
-                  </p>
-                  <div className="divide-y divide-line border-y border-line">
+                <div>
+                  <h3>
+                    Inside this stop · {live.subtopics.filter((s) => s.done).length}/{live.subtopics.filter((s) => !s.skipped).length} done
+                  </h3>
+                  <div className="subs">
                     {live.subtopics.map((s) => (
-                      <details key={s.refId} className={`group py-3 ${s.skipped ? "opacity-40" : ""}`}>
-                        <summary className="flex cursor-pointer list-none items-center gap-3">
+                      <details key={s.refId} className={s.skipped ? "sub skipped" : "sub"}>
+                        <summary>
                           <button
                             onClick={(e) => {
                               e.preventDefault();
                               if (!s.skipped) onToggle(live, s.refId);
                             }}
                             aria-label={s.done ? "Mark not done" : "Mark done"}
-                            className={`grid h-5 w-5 shrink-0 place-items-center rounded-[0.15rem] border text-[11px] ${s.done ? "border-cream bg-cream text-ink" : "border-line-strong"}`}
+                            className={s.done ? "check on" : "check"}
                           >
-                            {s.done ? "✓" : ""}
+                            {s.done ? Icon.check() : null}
                           </button>
-                          <span className="flex-1 text-[15px]">{s.title}</span>
-                          {s.skipped ? (
-                            <span className="font-mono text-[10px] uppercase text-faint">Trimmed · low demand</span>
-                          ) : s.demand >= 0.1 ? (
-                            <span className="font-mono text-[10px] uppercase text-cream/70">{Math.round(s.demand * 100)}% of jobs</span>
-                          ) : null}
-                          <span className="font-mono text-xs text-faint transition-transform group-open:rotate-45">+</span>
+                          <span className="sub-title">{s.title}</span>
+                          {s.skipped ? <span className="sub-meta">Trimmed</span> : s.demand >= 0.1 ? <span className="sub-meta hot">{Math.round(s.demand * 100)}% of jobs</span> : null}
+                          <span className="sub-plus">+</span>
                         </summary>
-                        <div className="pl-8 pt-2">
-                          {s.description && <p className="text-[13px] leading-relaxed text-muted">{s.description}</p>}
-                          <div className="mt-2">
-                            {s.resources.slice(0, 3).map((r) => (
-                              <ResourceLink key={r.url} r={r} />
-                            ))}
-                          </div>
+                        <div className="sub-body">
+                          {s.description && <p>{s.description}</p>}
+                          {s.resources.slice(0, 3).map((r) => (
+                            <a key={r.url} href={r.url} target="_blank" rel="noreferrer">
+                              {r.title} ↗
+                            </a>
+                          ))}
                         </div>
                       </details>
                     ))}
                   </div>
                 </div>
               )}
-              <p className="mt-8 font-mono text-[10px] uppercase text-faint">Topic content &amp; resources: roadmap.sh</p>
+              <p className="credit">Topic content &amp; resources: roadmap.sh</p>
             </div>
 
             {actionable && (
-              <div className="sticky bottom-0 border-t border-line bg-ink-2/95 p-5 backdrop-blur">
-                {live.kind === "review" ? (
-                  <button onClick={() => onFinishDetour(live)} className="w-full rounded-[0.15rem] bg-cream py-4 font-mono text-sm uppercase text-ink transition-colors hover:bg-blue hover:text-cream">
-                    I&apos;ve reviewed this — back on route →
+              <div className="sheet-foot">
+                {review ? (
+                  <button onClick={() => onFinishDetour(live)} className="dbtn orange block">
+                    I&apos;ve reviewed this · back on route
                   </button>
                 ) : (
-                  <button onClick={() => onProve(live)} className="w-full rounded-[0.15rem] bg-cream py-4 font-mono text-sm uppercase text-ink transition-colors hover:bg-blue hover:text-cream">
-                    Prove it — explain it back →
+                  <button onClick={() => onProve(live)} className="dbtn primary block">
+                    Prove it · +{XP_PER_STOP} XP
                   </button>
                 )}
-                {live.status === "upcoming" && <p className="mt-2 text-center font-mono text-[10px] uppercase text-faint">Jumping ahead is allowed. Proving it marks it done.</p>}
+                {live.status === "upcoming" && <p>Jumping ahead is allowed. Proving it marks it done.</p>}
               </div>
             )}
           </motion.aside>

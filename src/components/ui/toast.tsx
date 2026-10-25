@@ -32,11 +32,7 @@ export const useToasts = create<ToastState>((set, get) => ({
 
 export const toast = (t: Omit<Toast, "id" | "tone"> & { tone?: Tone }) => useToasts.getState().push(t);
 
-const dot: Record<Tone, string> = {
-  gold: "bg-gold shadow-[0_0_12px_#fdfdfd]",
-  ember: "bg-ember shadow-[0_0_12px_#d4373a]",
-  neutral: "bg-cream/60",
-};
+const dot: Record<Tone, string> = { gold: "#58cc02", ember: "#ff4b4b", neutral: "#1cb0f6" };
 
 export function Toaster() {
   const { toasts, dismiss } = useToasts();
@@ -52,12 +48,12 @@ export function Toaster() {
             animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, y: 12, scale: 0.98, filter: "blur(6px)" }}
             transition={{ duration: 0.7, ease: EASE }}
-            className="glass pointer-events-auto flex items-start gap-3 rounded-[0.2rem] bg-ink-2/80 px-4 py-3 text-left shadow-2xl"
+            className="wp-toast pointer-events-auto"
           >
-            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot[t.tone]}`} />
+            <span className="wp-toast-dot" style={{ background: dot[t.tone] }} />
             <span>
-              <span className="block text-sm font-medium text-cream">{t.title}</span>
-              {t.body && <span className="mt-0.5 block text-[13px] leading-snug text-muted">{t.body}</span>}
+              <span className="wp-toast-title">{t.title}</span>
+              {t.body && <span className="wp-toast-body">{t.body}</span>}
             </span>
           </motion.button>
         ))}
