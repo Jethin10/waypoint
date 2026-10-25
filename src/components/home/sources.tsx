@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef } from "react";
 import { FooterBar } from "./header";
 import { useProgress, useScrollPrint } from "./hooks";
@@ -48,6 +49,12 @@ export function Footer() {
   const progress = useScrollPrint(ref);
   return (
     <footer className="lp-footer theme--dark" ref={ref}>
+      <Link href="/start" className="footer-cta">
+        Try the app
+        <svg viewBox="0 0 18 16" fill="none" aria-hidden="true">
+          <path d="M2 8h13m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </Link>
       <Printer word="WAYPOINT" progress={progress} label="Waypoint" />
       <FooterBar />
     </footer>
